@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { PaymentStatusBadge, TicketStatusBadge } from './StatusBadge';
+import api from '../services/api';
 import {
   Calendar,
   Mail,
@@ -13,6 +14,7 @@ import {
   Maximize2,
   ShieldCheck,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 
 export const RegistrationDetailModal = ({
@@ -24,12 +26,59 @@ export const RegistrationDetailModal = ({
   onViewTicket,
 }) => {
   const [isFullscreenImage, setIsFullscreenImage] = useState(false);
+  const [imageSrc, setImageSrc] = useState(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  if (!registration) return null;
+  useEffect(() => {
+    if (!registration || !isOpen) return;
 
-  // Authenticated endpoint URL for payment proof screenshot
-  const screenshotUrl = `/api/registrations/${registration._id}/payment-proof`;
+    // 1. Direct Base64 check (instant, works offline and on all devices without CORS)
+    if (registration.paymentScreenshotBase64) {
+      setImageSrc(registration.paymentScreenshotBase64);
+      setIsLoadingImage(false);
+      setImageError(false);
+      return;
+    }
+
+    let isMounted = true;
+    let objectUrl = null;
+    setIsLoadingImage(true);
+    setImageError(false);
+
+    // 2. Fetch authenticated image blob through Axios (attaches Bearer token & handles CORS)
+    api
+      .get(`/registrations/${registration._id}/payment-proof`, {
+        responseType: 'blob',
+      })
+      .then((res) => {
+        if (isMounted) {
+          objectUrl = URL.createObjectURL(res.data);
+          setImageSrc(objectUrl);
+          setIsLoadingImage(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Axios blob image load failed, trying direct URL with token:', err.message);
+        if (isMounted) {
+          // 3. Fallback to direct backend URL with query token
+          const backendBase = import.meta.env.VITE_API_URL || 'https://portal-registration-bk.vercel.app/api';
+          const token = localStorage.getItem('adminToken');
+          const fallbackUrl = `${backendBase}/registrations/${registration._id}/payment-proof${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+          setImageSrc(fallbackUrl);
+          setIsLoadingImage(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [registration, isOpen]);
+
+  if (!registration) return null;
 
   return (
     <>
@@ -163,7 +212,12 @@ export const RegistrationDetailModal = ({
               </div>
 
               <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 aspect-[4/3] flex items-center justify-center">
-                {imageError ? (
+                {isLoadingImage ? (
+                  <div className="flex flex-col items-center justify-center p-6 text-slate-400 gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                    <span className="text-xs font-medium text-slate-500">Loading proof screenshot...</span>
+                  </div>
+                ) : imageError || !imageSrc ? (
                   <div className="text-center p-4">
                     <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
                     <p className="text-xs text-slate-500">
@@ -173,7 +227,7 @@ export const RegistrationDetailModal = ({
                 ) : (
                   <>
                     <img
-                      src={screenshotUrl}
+                      src={imageSrc}
                       alt="Payment Verification Proof"
                       className="w-full h-full object-contain cursor-pointer transition-transform group-hover:scale-105"
                       onClick={() => setIsFullscreenImage(true)}
@@ -251,7 +305,7 @@ export const RegistrationDetailModal = ({
         >
           <div className="max-w-5xl max-h-[90vh] relative">
             <img
-              src={screenshotUrl}
+              src={imageSrc}
               alt="Full Size Payment Proof"
               className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl border border-slate-700 bg-white"
             />

@@ -15,6 +15,9 @@ const requireAdminAuth = async (req, res, next) => {
     ) {
       // 2. Fallback to Authorization Header (useful for curl, testing, API clients)
       token = req.headers.authorization.split(' ')[1];
+    } else if (req.query && req.query.token) {
+      // 3. Fallback to query parameter (vital for <img> tags and downloads on cross-origin devices)
+      token = req.query.token;
     }
 
     if (!token) {

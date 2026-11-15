@@ -262,7 +262,14 @@ const streamPaymentProof = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const registration = await Registration.findById(id);
+    let registration = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      registration = await Registration.findById(id);
+    }
+    if (!registration) {
+      registration = await Registration.findOne({ registrationId: id });
+    }
+
     if (!registration) {
       return res.status(404).json({
         success: false,
@@ -270,17 +277,7 @@ const streamPaymentProof = async (req, res, next) => {
       });
     }
 
-    const key = registration.paymentScreenshotStorageKey;
-    if (key && fileExists(key)) {
-      const filePath = getSafeFilePath(key);
-      res.setHeader('Content-Type', registration.paymentScreenshotMimeType || 'image/jpeg');
-      res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
-      const readStream = fs.createReadStream(filePath);
-      return readStream.pipe(res);
-    }
-
+    // 1. If base64 is saved in Atlas, serve it directly (universal compatibility across serverless cold starts)
     if (registration.paymentScreenshotBase64) {
       const parts = registration.paymentScreenshotBase64.split(';base64,');
       const mime = parts[0].replace('data:', '') || registration.paymentScreenshotMimeType || 'image/jpeg';
@@ -288,8 +285,20 @@ const streamPaymentProof = async (req, res, next) => {
       res.setHeader('Content-Type', mime);
       res.setHeader('Content-Disposition', 'inline');
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
       return res.end(imgBuffer);
+    }
+
+    // 2. Otherwise try local disk file
+    const key = registration.paymentScreenshotStorageKey;
+    if (key && fileExists(key)) {
+      const filePath = getSafeFilePath(key);
+      res.setHeader('Content-Type', registration.paymentScreenshotMimeType || 'image/jpeg');
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      const readStream = fs.createReadStream(filePath);
+      return readStream.pipe(res);
     }
 
     return res.status(404).json({
