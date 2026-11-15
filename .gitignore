@@ -9,6 +9,8 @@ node_modules/
 backend/.env
 !frontend/.env
 !frontend/.env.production
+!.env.example
+!*/.env.example
 
 # Uploaded attendee payment proof files (Private attendee data)
 backend/private_uploads/*
