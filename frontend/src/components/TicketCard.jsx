@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Download,
   Printer,
@@ -11,9 +11,11 @@ import {
   Calendar,
   AlertCircle,
   QrCode as QrIcon,
+  Loader2,
 } from 'lucide-react';
 import { DeliveryStatusBadge, TicketStatusBadge } from './StatusBadge';
 import { useToast } from '../context/ToastContext';
+import api from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -26,6 +28,7 @@ export const TicketCard = ({
 }) => {
   const { toastSuccess, toastError } = useToast();
   const ticketRef = useRef(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   if (!ticket || !registration) return null;
 
@@ -43,7 +46,34 @@ export const TicketCard = ({
   };
 
   const handleDownloadPdfClient = async () => {
-    if (!ticketRef.current) return;
+    setIsDownloading(true);
+    try {
+      // 1. Download official vector A4 PDF from backend (fits all mobile screens & printers)
+      const targetId = ticket._id || ticket.ticketId;
+      const res = await api.get(`/tickets/${targetId}/download-pdf`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `Ticket-${ticket.ticketId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toastSuccess('Official PDF Ticket downloaded successfully!');
+      return;
+    } catch (apiErr) {
+      console.warn('Backend PDF endpoint error, falling back to client jsPDF:', apiErr.message);
+    }
+
+    // 2. Client-side fallback using standard A4 format (never shrinks or distorts on mobile)
+    if (!ticketRef.current) {
+      setIsDownloading(false);
+      return;
+    }
+
     try {
       const canvas = await html2canvas(ticketRef.current, {
         scale: 2,
@@ -51,13 +81,19 @@ export const TicketCard = ({
         backgroundColor: '#ffffff',
       });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('landscape', 'pt', [canvas.width * 0.75, canvas.height * 0.75]);
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width * 0.75, canvas.height * 0.75);
+      const pdf = new jsPDF('p', 'mm', 'a4'); // Standard A4: 210mm x 297mm
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 12;
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', margin, 20, imgWidth, imgHeight);
       pdf.save(`Ticket-${ticket.ticketId}.pdf`);
       toastSuccess('Ticket PDF downloaded successfully!');
     } catch (err) {
       console.error(err);
       toastError('Failed to generate PDF ticket.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -238,11 +274,16 @@ export const TicketCard = ({
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <button
             type="button"
+            disabled={isDownloading}
             onClick={handleDownloadPdfClient}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 shadow-md shadow-indigo-600/20 transition-all"
           >
-            <Download className="w-4 h-4" />
-            Download PDF Ticket
+            {isDownloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span>{isDownloading ? 'Generating PDF...' : 'Download PDF Ticket'}</span>
           </button>
 
           <button

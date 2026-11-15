@@ -33,38 +33,53 @@ export const RegistrationDetailModal = ({
   useEffect(() => {
     if (!registration || !isOpen) return;
 
+    setImageError(false);
+
     // 1. Direct Base64 check (instant, works offline and on all devices without CORS)
     if (registration.paymentScreenshotBase64) {
       setImageSrc(registration.paymentScreenshotBase64);
       setIsLoadingImage(false);
-      setImageError(false);
       return;
     }
 
     let isMounted = true;
     let objectUrl = null;
     setIsLoadingImage(true);
-    setImageError(false);
 
-    // 2. Fetch authenticated image blob through Axios (attaches Bearer token & handles CORS)
+    const targetId = registration._id || registration.registrationId;
+
+    // 2. Fetch full registration document to get stored base64 proof
     api
-      .get(`/registrations/${registration._id}/payment-proof`, {
-        responseType: 'blob',
-      })
+      .get(`/registrations/${targetId}`)
       .then((res) => {
-        if (isMounted) {
-          objectUrl = URL.createObjectURL(res.data);
-          setImageSrc(objectUrl);
+        if (!isMounted) return;
+        const reg = res.data?.data?.registration;
+        if (reg?.paymentScreenshotBase64) {
+          setImageSrc(reg.paymentScreenshotBase64);
           setIsLoadingImage(false);
+          return;
         }
+
+        // 3. Fallback: stream binary image blob with Bearer authorization
+        return api
+          .get(`/registrations/${targetId}/payment-proof`, {
+            responseType: 'blob',
+          })
+          .then((blobRes) => {
+            if (isMounted && blobRes?.data) {
+              objectUrl = URL.createObjectURL(blobRes.data);
+              setImageSrc(objectUrl);
+              setIsLoadingImage(false);
+            }
+          });
       })
       .catch((err) => {
-        console.warn('Axios blob image load failed, trying direct URL with token:', err.message);
+        console.warn('Image fetch fallback to direct token URL:', err.message);
         if (isMounted) {
-          // 3. Fallback to direct backend URL with query token
+          // 4. Ultimate fallback: Direct URL with token query param
           const backendBase = import.meta.env.VITE_API_URL || 'https://portal-registration-bk.vercel.app/api';
           const token = localStorage.getItem('adminToken');
-          const fallbackUrl = `${backendBase}/registrations/${registration._id}/payment-proof${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+          const fallbackUrl = `${backendBase}/registrations/${targetId}/payment-proof${token ? `?token=${encodeURIComponent(token)}` : ''}`;
           setImageSrc(fallbackUrl);
           setIsLoadingImage(false);
         }
