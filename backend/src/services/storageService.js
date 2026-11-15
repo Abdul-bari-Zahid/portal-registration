@@ -2,9 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config/config');
 
-// Ensure private upload directory exists
-if (!fs.existsSync(config.upload.dir)) {
-  fs.mkdirSync(config.upload.dir, { recursive: true });
+// Ensure private upload directory exists safely (prevents read-only FS crash on serverless)
+try {
+  if (!fs.existsSync(config.upload.dir)) {
+    fs.mkdirSync(config.upload.dir, { recursive: true });
+  }
+} catch (err) {
+  // Read-only filesystem warning in serverless
 }
 
 /**

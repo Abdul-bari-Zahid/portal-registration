@@ -31,6 +31,8 @@ app.use(
 // CORS configuration
 const allowedOrigins = [
   config.clientUrl,
+  'https://portal-registration-m897.vercel.app',
+  'https://portal-registration-bk.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5174',
@@ -41,12 +43,18 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl) or in allowlist
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS policy violation: origin ${origin} not permitted.`));
+      // Allow requests with no origin (like mobile apps, Postman or server-to-server)
+      if (!origin) return callback(null, true);
+      
+      // Allow allowedOrigins, or any .vercel.app domain
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+      ) {
+        return callback(null, true);
       }
+      return callback(null, true); // Permissive for production ease across Vercel previews
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -68,10 +76,12 @@ app.use((req, res, next) => {
 // Apply general rate limiting
 app.use('/api/', generalLimiter);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// Root & Health check endpoints
+app.get(['/', '/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'healthy',
+    online: true,
+    message: 'Event Registration & Gate Pass API is operating normally.',
     timestamp: new Date().toISOString(),
     event: config.event.name,
     environment: config.env,

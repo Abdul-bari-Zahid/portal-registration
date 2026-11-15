@@ -45,6 +45,10 @@ const registrationSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    paymentScreenshotBase64: {
+      type: String,
+      default: null,
+    },
     registrationId: {
       type: String,
       required: true,

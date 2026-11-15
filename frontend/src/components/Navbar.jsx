@@ -77,6 +77,14 @@ export const PublicNavbar = () => {
             </span>
           </div>
         </Link>
+
+        <Link
+          to="/admin/login"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 bg-indigo-50/90 hover:bg-indigo-100 border border-indigo-200/80 transition-all shadow-xs hover:shadow"
+        >
+          <Shield className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Admin Access</span>
+        </Link>
       </div>
     </header>
   );

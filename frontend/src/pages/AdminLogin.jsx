@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Shield, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -147,12 +147,12 @@ export const AdminLogin = () => {
         </div>
 
         <div className="mt-6 text-center">
-          <a
-            href="/"
-            className="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors"
+          <Link
+            to="/"
+            className="text-xs text-slate-500 hover:text-indigo-600 font-medium inline-flex items-center gap-1 transition-colors"
           >
             ← Back to Public Registration
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -4,6 +4,11 @@ const config = require('./config');
 let memoryServer = null;
 
 const connectDB = async () => {
+  // Reuse existing connection if already connected (vital for serverless lambdas)
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose.connection;
+  }
+
   try {
     let uri = config.mongoUri;
 
@@ -17,13 +22,18 @@ const connectDB = async () => {
 
     const conn = await mongoose.connect(uri, {
       autoIndex: true,
+      serverSelectionTimeoutMS: 10000,
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host} / DB: ${conn.connection.name}`);
     return conn;
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    // Do not call process.exit(1) on serverless environments like Vercel / Lambda
+    if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 

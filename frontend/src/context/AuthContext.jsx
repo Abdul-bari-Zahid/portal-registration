@@ -35,6 +35,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
     if (response.data.success && response.data.admin) {
+      if (response.data.token) {
+        localStorage.setItem('adminToken', response.data.token);
+      }
       setAdmin(response.data.admin);
       setIsAuthenticated(true);
       return response.data;
@@ -49,6 +52,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      localStorage.removeItem('adminToken');
       setAdmin(null);
       setIsAuthenticated(false);
       window.location.href = '/admin/login';

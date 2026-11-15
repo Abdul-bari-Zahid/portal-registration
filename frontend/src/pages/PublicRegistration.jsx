@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   UploadCloud,
   CheckCircle2,
@@ -581,6 +582,20 @@ export const PublicRegistration = () => {
           </div>
         )}
       </main>
+
+      {/* Footer with subtle Admin Access */}
+      <footer className="border-t border-slate-200 py-6 px-4 bg-white/60 text-center text-xs text-slate-500">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© 2026 Uraan Event Management System. All rights reserved.</p>
+          <Link
+            to="/admin/login"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 transition-all"
+          >
+            <Shield className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Admin Portal Access</span>
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 };

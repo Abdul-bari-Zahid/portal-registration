@@ -1,0 +1,25 @@
+{
+  "name": "portal-registration",
+  "version": "1.0.0",
+  "description": "Secure Event Registration & QR Ticket Management Portal",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "test": "node --test backend/src/tests/portal.test.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "file-type": "^16.5.4",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.23.0",
+    "multer": "^1.4.5-lts.2",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.4"
+  }
+}

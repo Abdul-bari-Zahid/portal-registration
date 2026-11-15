@@ -1,10 +1,15 @@
 const path = require('path');
+const os = require('os');
 require('dotenv').config();
+
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 5000,
-  mongoUri: process.env.MONGODB_URI || 'memory',
+  mongoUri:
+    process.env.MONGODB_URI ||
+    'mongodb+srv://bariblogger6_db_user:k8L1azZkVcua7IZ0@cluster0.jiwdcab.mongodb.net/',
   jwt: {
     secret: process.env.JWT_SECRET || 'fallback_dev_secret_please_change_in_production_12345',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
@@ -14,8 +19,8 @@ const config = {
     name: 'admin_auth_token',
     options: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      secure: isServerless || process.env.NODE_ENV === 'production',
+      sameSite: isServerless || process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   },
@@ -23,11 +28,13 @@ const config = {
     email: (process.env.ADMIN_EMAIL || 'admin@eventportal.com').toLowerCase().trim(),
     initialPassword: process.env.ADMIN_INITIAL_PASSWORD || 'AdminSecurePass!2026',
   },
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
-  serverUrl: process.env.SERVER_URL || 'http://localhost:5000',
+  clientUrl: process.env.CLIENT_URL || 'https://portal-registration-m897.vercel.app',
+  serverUrl: process.env.SERVER_URL || 'https://portal-registration-bk.vercel.app',
   upload: {
     maxSizeMb: parseInt(process.env.UPLOAD_MAX_SIZE_MB, 10) || 5,
-    dir: path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || 'private_uploads'),
+    dir: isServerless
+      ? path.join(os.tmpdir(), 'private_uploads')
+      : path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || 'private_uploads'),
     allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
   },
   event: {

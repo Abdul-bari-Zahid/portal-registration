@@ -49,6 +49,16 @@ const submitRegistration = async (req, res, next) => {
       collisionCheck = await Registration.findOne({ registrationId });
     }
 
+    let screenshotBase64 = null;
+    if (req.file) {
+      try {
+        const fileBuf = await fs.promises.readFile(req.file.path);
+        screenshotBase64 = `data:${req.file.validatedMime || req.file.mimetype};base64,${fileBuf.toString('base64')}`;
+      } catch (readErr) {
+        console.error('Failed reading file to base64:', readErr);
+      }
+    }
+
     const registration = new Registration({
       fullName: fullName.trim(),
       email: normalizedEmail,
@@ -58,6 +68,7 @@ const submitRegistration = async (req, res, next) => {
       paymentScreenshotMimeType: req.file.validatedMime || req.file.mimetype,
       paymentScreenshotOriginalName: req.file.originalname,
       paymentScreenshotFileSize: req.file.size,
+      paymentScreenshotBase64: screenshotBase64,
       registrationId,
       paymentStatus: 'PENDING',
     });
@@ -260,23 +271,31 @@ const streamPaymentProof = async (req, res, next) => {
     }
 
     const key = registration.paymentScreenshotStorageKey;
-    if (!key || !fileExists(key)) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment screenshot proof file was not found on server',
-      });
+    if (key && fileExists(key)) {
+      const filePath = getSafeFilePath(key);
+      res.setHeader('Content-Type', registration.paymentScreenshotMimeType || 'image/jpeg');
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+      const readStream = fs.createReadStream(filePath);
+      return readStream.pipe(res);
     }
 
-    const filePath = getSafeFilePath(key);
+    if (registration.paymentScreenshotBase64) {
+      const parts = registration.paymentScreenshotBase64.split(';base64,');
+      const mime = parts[0].replace('data:', '') || registration.paymentScreenshotMimeType || 'image/jpeg';
+      const imgBuffer = Buffer.from(parts[1], 'base64');
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+      return res.end(imgBuffer);
+    }
 
-    // Set security headers to prevent sniffing or embedding attacks
-    res.setHeader('Content-Type', registration.paymentScreenshotMimeType || 'image/jpeg');
-    res.setHeader('Content-Disposition', 'inline');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
-
-    const readStream = fs.createReadStream(filePath);
-    readStream.pipe(res);
+    return res.status(404).json({
+      success: false,
+      message: 'Payment screenshot proof file was not found on server',
+    });
   } catch (err) {
     next(err);
   }
