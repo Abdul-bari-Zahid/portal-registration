@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables and credentials (CRITICAL: Never commit secrets)
+.env
+.env.*
+*.env
+backend/.env
+
+# Uploaded attendee payment proof files (Private attendee data)
+backend/private_uploads/*
+!backend/private_uploads/.gitkeep
+private_uploads/
+
+# Production builds
+dist/
+*/dist/
+build/
+
+# Logs and system cache
+*.log
+npm-debug.log*
+yarn-debug.log*
+.cache/
+.system_generated/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
