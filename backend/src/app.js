@@ -103,6 +103,35 @@ app.get('/api/config/public', (req, res) => {
   });
 });
 
+// Diagnostic endpoint to check live database connectivity on Vercel
+app.get('/api/db-check', async (req, res) => {
+  const mongoose = require('mongoose');
+  const { connectDB } = require('./config/db');
+  const startTime = Date.now();
+  try {
+    const conn = await connectDB();
+    const duration = Date.now() - startTime;
+    return res.status(200).json({
+      success: true,
+      durationMs: duration,
+      readyState: mongoose.connection.readyState,
+      dbName: conn.connection?.name || mongoose.connection?.name,
+      host: conn.connection?.host || mongoose.connection?.host,
+    });
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    return res.status(500).json({
+      success: false,
+      durationMs: duration,
+      readyState: mongoose.connection.readyState,
+      errorName: err.name,
+      errorMessage: err.message,
+      errorCode: err.code,
+      reason: err.reason || null,
+    });
+  }
+});
+
 // Mount modular API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/registrations', registrationRoutes);

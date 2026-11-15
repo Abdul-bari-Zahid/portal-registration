@@ -9,7 +9,7 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   mongoUri:
     process.env.MONGODB_URI ||
-    'mongodb+srv://bariblogger6_db_user:k8L1azZkVcua7IZ0@cluster0.jiwdcab.mongodb.net/',
+    'mongodb+srv://bariblogger6_db_user:k8L1azZkVcua7IZ0@cluster0.jiwdcab.mongodb.net/event_portal?retryWrites=true&w=majority',
   jwt: {
     secret: process.env.JWT_SECRET || 'fallback_dev_secret_please_change_in_production_12345',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',

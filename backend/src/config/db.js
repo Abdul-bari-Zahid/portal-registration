@@ -3,38 +3,60 @@ const config = require('./config');
 
 let memoryServer = null;
 
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
-  // Reuse existing connection if already connected (vital for serverless lambdas)
-  if (mongoose.connection.readyState >= 1) {
-    return mongoose.connection;
-  }
-
-  try {
-    let uri = config.mongoUri;
-
-    if (uri === 'memory') {
+  // If memory DB requested for tests
+  if (config.mongoUri === 'memory') {
+    if (!memoryServer) {
       console.log('🔄 Spin up in-memory MongoDB server for development/testing...');
       const { MongoMemoryServer } = require('mongodb-memory-server');
       memoryServer = await MongoMemoryServer.create();
-      uri = memoryServer.getUri();
-      console.log(`✅ In-memory MongoDB started at: ${uri}`);
+      config.mongoUri = memoryServer.getUri();
+      console.log(`✅ In-memory MongoDB started at: ${config.mongoUri}`);
     }
+  }
 
-    const conn = await mongoose.connect(uri, {
+  // Reuse existing connection if active
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
+  }
+
+  if (mongoose.connection.readyState === 1) {
+    cached.conn = mongoose.connection;
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
       autoIndex: true,
-      serverSelectionTimeoutMS: 10000,
-    });
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+      socketTimeoutMS: 45000,
+    };
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host} / DB: ${conn.connection.name}`);
-    return conn;
+    cached.promise = mongoose.connect(config.mongoUri, opts).then((mongooseInstance) => {
+      console.log(`✅ MongoDB Connected: ${mongooseInstance.connection.host} / DB: ${mongooseInstance.connection.name}`);
+      return mongooseInstance;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
   } catch (error) {
+    cached.promise = null;
+    cached.conn = null;
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    // Do not call process.exit(1) on serverless environments like Vercel / Lambda
     if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
       process.exit(1);
     }
     throw error;
   }
+
+  return cached.conn;
 };
 
 const disconnectDB = async () => {
